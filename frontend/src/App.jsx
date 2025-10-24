@@ -1,44 +1,107 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import FormBuilder from './components/FormBuilder';
+import FormView from './components/FormView';
+import FormResponses from './components/FormResponses';
+import CollaboratorManagement from './components/Collaborators/CollaboratorManagement';
+import Navbar from './components/Navbar';
+import ShareForm from "./components/Sharing/ShareForm";
 
-// Inline protected wrapper (bez posebnog fajla)
-function Protected({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div>Učitavanje…</div>;
-  return user ? children : <div style={{ padding: 16 }}>Prijavite se da pristupite ovoj stranici.</div>;
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" />;
 }
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <nav style={{ padding: 16, borderBottom: '1px solid #eee', display: 'flex', gap: 12 }}>
-          <Link to="/">Login</Link>
-          <Link to="/register">Register</Link>
-          <Link to="/dashboard">Dashboard</Link>
-        </nav>
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+  return !user ? children : <Navigate to="/dashboard" />;
+}
 
-        <main style={{ padding: 16 }}>
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Navbar />
           <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/dashboard"
+            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route 
+              path="/login" 
               element={
-                <Protected>
-                  <Dashboard />
-                </Protected>
-              }
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              } 
             />
-            <Route path="*" element={<div>404</div>} />
+            <Route 
+              path="/register" 
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forms/new" 
+              element={
+                <ProtectedRoute>
+                  <FormBuilder />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forms/:id/edit" 
+              element={
+                <ProtectedRoute>
+                  <FormBuilder />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forms/:id" 
+              element={<FormView />} 
+            />
+            <Route 
+              path="/forms/:id/responses" 
+              element={
+                <ProtectedRoute>
+                  <FormResponses />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forms/:id/collaborators" 
+              element={
+                <ProtectedRoute>
+                  <CollaboratorManagement />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/forms/:id/share" 
+              element={
+                <ProtectedRoute>
+                  <ShareForm />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
-        </main>
-      </AuthProvider>
-    </BrowserRouter>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
+
+export default App;

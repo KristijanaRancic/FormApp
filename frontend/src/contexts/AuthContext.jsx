@@ -1,64 +1,91 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { loginReq, registerReq, meReq } from '../api';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
+console.log("API URL:", import.meta.env.VITE_API_URL);
 
-export function AuthProvider({ children }) {
-  const navigate = useNavigate();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) { setLoading(false); return; }
-    meReq()
-      .then((res) => setUser(res.user ?? null))
-      .catch(() => { localStorage.removeItem('token'); setUser(null); })
-      .finally(() => setLoading(false));
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    setLoading(false);
   }, []);
 
-  async function login({ email, password }) {
-    setError(null);
+  const login = async (email, password) => {
     try {
-      const res = await loginReq({ email, password });
-      if (res.token) localStorage.setItem('token', res.token);
-      setUser(res.user ?? null);
-      navigate('/dashboard');
-      return true;
-    } catch {
-      setError('Neuspešna prijava');
-      return false;
-    }
-  }
+      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+      const { user: userData, token } = response.data;
 
-  async function register({ name, email, password }) {
-    setError(null);
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(userData);
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Login failed' 
+      };
+    }
+  };
+
+  const register = async (name, email, password) => {
     try {
-      const res = await registerReq({ name, email, password });
-      if (res.token) localStorage.setItem('token', res.token);
-      setUser(res.user ?? { name, email });
-      navigate('/dashboard');
-      return true;
-    } catch {
-      setError('Neuspešna registracija');
-      return false;
-    }
-  }
+      const response = await axios.post(`${API_URL}/auth/register`, { name, email, password });
+      const { user: userData, token } = response.data;
 
-  function logout() {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(userData);
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Registration failed' 
+      };
+    }
+  };
+
+  const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
-    navigate('/');
-  }
+  };
 
-  const value = useMemo(() => ({ user, loading, error, login, register, logout }), [user, loading, error]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    loading
+  };
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-}
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
