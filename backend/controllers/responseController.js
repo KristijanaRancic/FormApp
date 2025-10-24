@@ -3,6 +3,7 @@ import { Response } from '../models/Response.js';
 import { Question } from '../models/Question.js';
 import XLSX from 'xlsx';
 
+
 const getFormId = (req) => {
   return req.params.id || req.params.formId;
 };
@@ -26,15 +27,16 @@ export const responseController = {
       return res.status(423).json({ error: 'Form is locked and not accepting responses' });
     }
 
+  
     if (!form.allow_unauthenticated && !userId) {
       return res.status(401).json({ error: 'Authentication required to submit this form' });
     }
 
-    
+ 
     const questions = await Question.findByFormId(formId);
     console.log('Debug submit - Questions:', questions);
 
-
+  
     const validationErrors = [];
     for (const question of questions) {
       if (question.is_required) {
@@ -54,6 +56,7 @@ export const responseController = {
         details: validationErrors
       });
     }
+
 
     const response = await Response.createWithAnswers(formId, userId, answers);
     console.log('Debug submit - Response created:', response);
@@ -75,14 +78,14 @@ export const responseController = {
 
       console.log('Debug - Form ID:', formId, 'User ID:', userId);
 
-   
+      
       const form = await Form.findById(formId);
       if (!form) {
         console.log('Debug - Form not found');
         return res.status(404).json({ error: 'Form not found' });
       }
 
-     
+      
       const hasAccess = await Form.hasAccess(formId, userId);
       console.log('Debug - Has access:', hasAccess);
       
@@ -102,10 +105,10 @@ export const responseController = {
 
   async getResponseStats(req, res) {
     try {
-      const formId = parseInt(getFormId(req)); 
+      const formId = parseInt(getFormId(req));
       const userId = parseInt(req.user.userId);
 
-      
+     
       const form = await Form.findById(formId);
       if (!form) {
         return res.status(404).json({ error: 'Form not found' });
@@ -150,11 +153,13 @@ export const responseController = {
     const formId = parseInt(getFormId(req));
     const userId = parseInt(req.user.userId);
 
+    
     const form = await Form.findById(formId);
     if (!form) {
       return res.status(404).json({ error: 'Form not found' });
     }
 
+   
     const hasAccess = await Form.hasAccess(formId, userId);
     if (!hasAccess) {
       return res.status(403).json({ error: 'Access denied' });
@@ -163,9 +168,10 @@ export const responseController = {
     const questions = await Question.findByFormId(formId);
     const responses = await Response.findByFormId(formId);
 
-   
+  
     const wb = XLSX.utils.book_new();
 
+    
     const responseData = responses.map(response => {
       const row = {
         'Response ID': response.id,
@@ -187,7 +193,7 @@ export const responseController = {
           if (question.type === 'image' && answer.answer_text.startsWith('data:image')) {
             row[question.text] = `[Image ${response.id}-${question.id}]`;
           } 
-          
+        
           else if (answer.answer_text.length > 30000) {
             row[question.text] = `[Data too long: ${answer.answer_text.length} chars]`;
           }
@@ -214,11 +220,13 @@ export const responseController = {
 
     const ws = XLSX.utils.json_to_sheet(responseData);
     
+    
     const colWidths = questions.map(() => ({ wch: 20 }));
     ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 25 }, ...colWidths];
     
     XLSX.utils.book_append_sheet(wb, ws, 'Responses');
 
+    
     const questionInfo = questions.map(q => ({
       'Question ID': q.id,
       'Question Text': q.text,
@@ -230,6 +238,7 @@ export const responseController = {
     const questionWs = XLSX.utils.json_to_sheet(questionInfo);
     XLSX.utils.book_append_sheet(wb, questionWs, 'Questions');
 
+   
     const excelBuffer = XLSX.write(wb, { 
       type: 'buffer', 
       bookType: 'xlsx'
@@ -258,11 +267,13 @@ export const responseController = {
       const { responseId } = req.params;
       const userId = parseInt(req.user.userId);
 
+      
       const form = await Form.findById(formId);
       if (!form) {
         return res.status(404).json({ error: 'Form not found' });
       }
 
+      
       const hasAccess = await Form.hasAccess(formId, userId);
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied' });
